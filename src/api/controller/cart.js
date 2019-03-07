@@ -142,9 +142,9 @@ module.exports = class extends Base {
       // 添加规格名和值
       let goodsSepcifition = [];
       if (!think.isEmpty(productInfo.goods_specification_ids)) {
-        goodsSepcifition = await this.model('goods_specification').field(['nideshop_goods_specification.*', 'nideshop_specification.name']).join('nideshop_specification ON nideshop_specification.id=nideshop_goods_specification.specification_id').where({
-          'nideshop_goods_specification.goods_id': goodsId,
-          'nideshop_goods_specification.id': {'in': productInfo.goods_specification_ids.split('_')}
+        goodsSepcifition = await this.model('goods_specification').field(['panji_goods_specification.*', 'panji_specification.name']).join('panji_specification ON panji_specification.id=panji_goods_specification.specification_id').where({
+          'panji_goods_specification.goods_id': goodsId,
+          'panji_goods_specification.id': {'in': productInfo.goods_specification_ids.split('_')}
         }).select();
       }
 
