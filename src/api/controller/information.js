@@ -187,21 +187,21 @@ module.exports = class extends Base {
   async listAction() {
     const page = this.get('page');
     const size = this.get('size');
-    const selType = this.get('selType');
-    const orderMap = {'id': 'desc'};
+    const bkType = this.get('bkType');
+    const orderMap = {'is_top': 'desc', 'id': 'desc'};
     const finldArry = ['a.details', 'a.id', 'a.name', 'a.list_pic_url', 'a.retail_price',
       'a.user_id', 'a.user_name', 'a.user_tel', 'a.views', 'a.givelike', 'a.address', 'a.is_top', 'a.img',
-      'b.avatar as user_img', 'c.name as category_name', 'FROM_UNIXTIME(a.add_time) as add_time'];
+      'b.avatar as user_img', 'd.name as category_parent_name', 'c.name as category_name', 'FROM_UNIXTIME(a.add_time) as add_time'];
     const whereMap = {'is_delete': 0, 'audit_status': 2};
-    if (!think.isEmpty(selType)) {
+    if (!think.isEmpty(bkType)) {
       const whereCateMap = {};
-      if (selType === 'isHelp') {
+      if (bkType === 'isHelp') {
         // 求助帮忙
-        whereCateMap.parent_id = '1005002';
-      } else if (selType === 'jobHunting') {
+        whereCateMap.parent_id = '1007000';
+      } else if (bkType === 'jobHunting') {
         // 求职招聘
-        whereCateMap.parent_id = '1005001';
-      } else if (selType === 'lostProperty') {
+        whereCateMap.parent_id = '1006000';
+      } else if (bkType === 'lostProperty') {
         // 寻人寻物
         whereCateMap.parent_id = '1005000';
       }
@@ -211,10 +211,18 @@ module.exports = class extends Base {
         whereMap['a.category_id'] = {'in': parentIds};
       }
     }
+    // { table: 'tradename',  join: 'left', on: ['tid', 'id'] }
+    // const informationList = await this.model('information as a').field(finldArry)
+    //   .join('panji_user b ON a.user_id=b.id ').join('panji_category c on a.category_id=c.id').leftjoin().where(whereMap).order(orderMap).page(page, size).select();
     const informationList = await this.model('information as a').field(finldArry)
-      .join('panji_user b ON a.user_id=b.id ').join('panji_category c on a.category_id=c.id').where(whereMap).order(orderMap).page(page, size).select();
-
-    return this.success({informationList: informationList});
+      .join({ table: 'panji_user as b', join: ' join ', on: ['a.user_id', 'b.id'] })
+      .join({ table: 'panji_category as c', join: ' join ', on: ['a.category_id', 'c.id'] })
+      .join({ table: 'panji_category as d', join: ' join ', on: ['d.id', 'c.parent_id'] })
+      .where(whereMap).order(orderMap).page(page, size).select();
+    return this.success({
+      informationList: informationList,
+      bkType: bkType
+    });
   }
 
   /**
