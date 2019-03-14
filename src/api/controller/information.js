@@ -95,7 +95,7 @@ module.exports = class extends Base {
    * 获取商品列表
    * @returns {Promise.<*>}
    */
-  async listAction() {
+  async list1Action() {
     const categoryId = this.get('categoryId');
     const brandId = this.get('brandId');
     const keyword = this.get('keyword');
@@ -178,6 +178,43 @@ module.exports = class extends Base {
     goodsData.informationList = goodsData.data;
 
     return this.success(goodsData);
+  }
+
+  /**
+   * 获取信息列表
+   * @returns {Promise.<*>}
+   */
+  async listAction() {
+    const page = this.get('page');
+    const size = this.get('size');
+    const selType = this.get('selType');
+    const orderMap = {'id': 'desc'};
+    const finldArry = ['a.details', 'a.id', 'a.name', 'a.list_pic_url', 'a.retail_price',
+      'a.user_id', 'a.user_name', 'a.user_tel', 'a.views', 'a.givelike', 'a.address', 'a.is_top', 'a.img',
+      'b.avatar as user_img', 'c.name as category_name', 'FROM_UNIXTIME(a.add_time) as add_time'];
+    const whereMap = {'is_delete': 0, 'audit_status': 2};
+    if (!think.isEmpty(selType)) {
+      const whereCateMap = {};
+      if (selType === 'isHelp') {
+        // 求助帮忙
+        whereCateMap.parent_id = '1005002';
+      } else if (selType === 'jobHunting') {
+        // 求职招聘
+        whereCateMap.parent_id = '1005001';
+      } else if (selType === 'lostProperty') {
+        // 寻人寻物
+        whereCateMap.parent_id = '1005000';
+      }
+      // 判断是否有条件产生
+      if (!think.isEmpty(whereCateMap)) {
+        const parentIds = await this.model('category').where(whereCateMap).getField('id', 10000);
+        whereMap['a.category_id'] = {'in': parentIds};
+      }
+    }
+    const informationList = await this.model('information as a').field(finldArry)
+      .join('panji_user b ON a.user_id=b.id ').join('panji_category c on a.category_id=c.id').where(whereMap).order(orderMap).page(page, size).select();
+
+    return this.success({informationList: informationList});
   }
 
   /**

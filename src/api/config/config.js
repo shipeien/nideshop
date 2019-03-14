@@ -10,6 +10,7 @@ module.exports = {
     'goods',
     'brand',
     'search',
+    'information',
     'region'
   ],
 
