@@ -185,6 +185,7 @@ module.exports = class extends Base {
    * @returns {Promise.<*>}
    */
   async listAction() {
+    const categoryId = this.get('categoryId');
     const page = this.get('page');
     const size = this.get('size');
     const bkType = this.get('bkType');
@@ -210,6 +211,9 @@ module.exports = class extends Base {
         const parentIds = await this.model('category').where(whereCateMap).getField('id', 10000);
         whereMap['a.category_id'] = {'in': parentIds};
       }
+    } else if (!think.isEmpty(categoryId)) {
+      // 分类查询条件生效
+      whereMap['a.category_id'] = ['in', await this.model('category').getCategoryWhereIn(categoryId)];
     }
     // { table: 'tradename',  join: 'left', on: ['tid', 'id'] }
     // const informationList = await this.model('information as a').field(finldArry)
