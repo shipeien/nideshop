@@ -27,50 +27,38 @@ module.exports = class extends Base {
    * @returns {Promise.<Promise|PreventPromise|void>}
    */
   async detailAction() {
-    const goodsId = this.get('id');
+    const infoId = this.get('id');
     const model = this.model('information');
 
-    const info = await model.where({'id': goodsId}).find();
-    const gallery = await this.model('goods_gallery').where({goods_id: goodsId}).limit(4).select();
-    // const attribute = await this.model('goods_attribute').field('panji_goods_attribute.value, panji_attribute.name').join('panji_attribute ON panji_goods_attribute.attribute_id=panji_attribute.id').order({'panji_goods_attribute.id': 'asc'}).where({'panji_goods_attribute.goods_id': goodsId}).select();
-    const issue = await this.model('goods_issue').select();
-    const brand = await this.model('brand').where({id: info.brand_id}).find();
-    const commentCount = await this.model('comment').where({value_id: goodsId, type_id: 0}).count();
-    const hotComment = await this.model('comment').where({value_id: goodsId, type_id: 0}).find();
-    let commentInfo = {};
-    if (!think.isEmpty(hotComment)) {
-      const commentUser = await this.model('user').field(['nickname', 'username', 'avatar']).where({id: hotComment.user_id}).find();
-      commentInfo = {
-        content: Buffer.from(hotComment.content, 'base64').toString(),
-        add_time: think.datetime(new Date(hotComment.add_time * 1000)),
-        nickname: commentUser.nickname,
-        avatar: commentUser.avatar,
-        pic_list: await this.model('comment_picture').where({comment_id: hotComment.id}).select()
-      };
-    }
+    // 更新阅读量
+    await model.updateViews(infoId);
+    // 查询帖子信息
+    // const info = await model.where({'id': infoId}).find();
+    const info = await this.model('information as a').field(['a.details', 'a.id', 'a.name',
+      'a.user_id', 'a.user_name', 'a.user_tel', 'a.views', 'a.givelike', 'a.address', 'a.is_top', 'a.img',
+      'b.avatar as user_img', 'd.name as category_parent_name', 'c.name as category_name', 'add_time'])
+      .join({ table: 'panji_user as b', join: ' join ', on: ['a.user_id', 'b.id'] })
+      .join({ table: 'panji_category as c', join: ' join ', on: ['a.category_id', 'c.id'] })
+      .join({ table: 'panji_category as d', join: ' join ', on: ['d.id', 'c.parent_id'] })
+      .where({'a.id': infoId}).limit(1).select();
 
-    const comment = {
-      count: commentCount,
-      data: commentInfo
-    };
-
+    const finldArry = ['a.details', 'a.id',
+      'a.time', 'a.user_id', 'a.reply', 'a.hf_time',
+      'b.avatar as user_img', 'b.nickname'];
+    const whereMap = {information_id: infoId, del: 0};
+    const orderMap = {'id': 'desc'};
+    const comments = await this.model('comments as a').field(finldArry)
+      .join({ table: 'panji_user as b', join: ' join ', on: ['a.user_id', 'b.id'] })
+      .where(whereMap).order(orderMap).find();
     // 当前用户是否收藏
-    const userHasCollect = await this.model('collect').isUserHasCollect(this.getLoginUserId(), 0, goodsId);
+    const userHasCollect = await this.model('collect').isUserHasCollect(this.getLoginUserId(), 0, infoId);
 
     // 记录用户的足迹 TODO
-    await await this.model('footprint').addFootprint(this.getLoginUserId(), goodsId);
-
-    // return this.json(jsonData);
+    await await this.model('footprint').addFootprint(this.getLoginUserId(), infoId);
     return this.success({
       info: info,
-      gallery: gallery,
-      // attribute: attribute,
-      userHasCollect: userHasCollect,
-      issue: issue,
-      comment: comment,
-      brand: brand,
-      specificationList: await model.getSpecificationList(goodsId),
-      productList: await model.getProductList(goodsId)
+      comments: comments,
+      userHasCollect: userHasCollect
     });
   }
 
@@ -190,9 +178,10 @@ module.exports = class extends Base {
     const size = this.get('size');
     const bkType = this.get('bkType');
     const orderMap = {'is_top': 'desc', 'id': 'desc'};
-    const finldArry = ['a.details', 'a.id', 'a.name', 'a.list_pic_url', 'a.retail_price',
+    // 'FROM_UNIXTIME(a.add_time) as add_time'
+    const finldArry = ['a.details', 'a.id', 'a.name',
       'a.user_id', 'a.user_name', 'a.user_tel', 'a.views', 'a.givelike', 'a.address', 'a.is_top', 'a.img',
-      'b.avatar as user_img', 'd.name as category_parent_name', 'c.name as category_name', 'FROM_UNIXTIME(a.add_time) as add_time'];
+      'b.avatar as user_img', 'd.name as category_parent_name', 'c.name as category_name', 'add_time'];
     const whereMap = {'is_delete': 0, 'audit_status': 2};
     if (!think.isEmpty(bkType)) {
       const whereCateMap = {};
@@ -228,6 +217,7 @@ module.exports = class extends Base {
       bkType: bkType
     });
   }
+
 
   /**
    * 商品列表筛选的分类列表
@@ -339,5 +329,17 @@ module.exports = class extends Base {
     return this.success({
       goodsCount: goodsCount
     });
+  }
+
+  /**
+   * 点赞
+   * @returns {Promise<void>}
+   */
+  async likeAction() {
+    const userId = this.get('userId');
+    const informationId = this.get('informationId');
+    const likeType = 1;
+    const hasLike = await this.model('like').updateLike(userId, informationId, likeType);
+    return this.success(hasLike);
   }
 };
